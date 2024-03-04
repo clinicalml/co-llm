@@ -1,0 +1,31 @@
+torch
+scipy
+packaging
+sentencepiece
+datasets
+deepspeed>=0.10.0
+accelerate>=0.21.0,<0.23.0  # 0.23.0 will cause an incorrect learning rate schedule when using deepspeed, which is likely caused by https://github.com/huggingface/accelerate/commit/727d624322c67db66a43c559d8c86414d5ffb537
+peft>=0.4.0
+bitsandbytes>=0.41.1
+evaluate>=0.4.0
+tokenizers>=0.13.3
+protobuf
+# transformers>=4.31.0
+# Follwing is a temporary fix for a bug in the left padding in the transformers library
+# See https://github.com/huggingface/transformers/pull/25284
+git+https://github.com/yizhongw/transformers.git@left_padding
+seaborn 
+
+flash-attn --no-binary :all:
+vllm==0.2.1.post1
+rouge_score
+tensorboard
+wandb
+fire 
+shortuuid
+fastapi
+
+# Add for joint llm training 
+rich 
+seaborn 
+
