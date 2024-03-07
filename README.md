@@ -1,7 +1,15 @@
 # Co-LLM: Learning to Decode Collaboratively with Multiple Language Models
 
+[🎉 Check our paper!](https://arxiv.org/abs/2403.03870)
+
+
 ## Overview
 
+![An explanation of the Co-LLM Method](.github/example.png)
+
+## Demo 
+
+<video src="https://github.com/clinicalml/co-llm/assets/22512825/16f287b6-b363-4c2b-b886-25028b755fb9"></video>
 
 ## Usage 
 
@@ -14,7 +22,6 @@ conda install \
     pytorch-cuda=12.1 -c pytorch -c nvidia -y
 
 pip install -r requirements.txt
-# pip install  -U flash-attn --no-build-isolation
 ```
 
 ### Overview 
@@ -133,3 +140,16 @@ In this code, it starts a base server for a deferral-trained Llama-7b model, as 
 ## Acknowledgement 
 
 Our code is extensively inspired by [allenai/open-instruct](https://github.com/allenai/open-instruct); we reused many code from the their library in our codebase.
+
+## Citation
+
+If you find our work helpful, please cite it as: 
+
+```bibtex
+@article{shen2024learning,
+  title={Learning to Decode Collaboratively with Multiple Language Models},
+  author={Shen, Shannon Zejiang and Lang, Hunter and Wang, Bailin and Kim, Yoon and Sontag, David},
+  journal={arXiv preprint arXiv:2403.03870},
+  year={2024}
+}
+```
