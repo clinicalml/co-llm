@@ -75,7 +75,7 @@ bash scripts/train/gsm8k/process_dataset.sh
 bash scripts/train/gsm8k/create_init_dataset.sh
 ```
 
-It will process the raw dataset (reformmating with the proper templates) and save it to `data/processed/gsm8k/gsm8k_data.jsonl`; 
+It will process the raw dataset (reformatting with the proper templates) and save it to `data/processed/gsm8k/gsm8k_data.jsonl`; 
 then it will use the corresponding models to score the dataset and save it in `checkpoints/dataset/gsm8k-completion/<model-name>`.
 Finally it will generate the initialization dataset in `checkpoints/dataset/gsm8k-completion/init-a-Llama-2-7b-hf+EleutherAI@llemma_7b`. 
 
