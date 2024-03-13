@@ -22,7 +22,7 @@ accelerate launch \
     --multi_gpu \
     --num_machines 1 \
     --num_processes $NUM_GPUS \
-    open_instruct/finetune.py \
+    collm/training/qlora_finetuning.py \
     --dataset_name ${DATASET_BASE_PATH} \
     --skip_data_preprocessing \
     --model_name_or_path ${LLAMA_BASE_PATH}/${MODEL_NAME} \
@@ -49,7 +49,7 @@ accelerate launch \
     --report_to wandb \
     --logging_steps 1 
 
-python open_instruct/merge_lora.py \
+python collm/merge_lora.py \
     --base_model_name_or_path ${LLAMA_BASE_PATH}/${MODEL_NAME} \
     --lora_model_name_or_path ${BASE_SAVE_PATH}/${DATASET_NAME}/${MODEL_NAME}_lora/ \
     --output_dir ${BASE_SAVE_PATH}/${DATASET_NAME}/${MODEL_NAME}_merged/

@@ -30,7 +30,7 @@ MODEL_NAME="EleutherAI@llemma_7b"
 echo "Process Dataset: Completion Format"
 echo "Base model:     ${MODEL_NAME}"
 echo "Dataset:        ${DATASET_NAME}"
-python open_instruct/process_dataset.py \
+python collm/dataset/scoring.py \
     --model_name_or_path ${LLAMA_BASE_PATH}/${MODEL_NAME} \
     --use_flash_attn \
     --use_completion_format \
@@ -65,7 +65,7 @@ python open_instruct/process_dataset.py \
 # echo "Process Dataset: Completion Format"
 # echo "Base model:     ${MODEL_NAME}"
 # echo "Dataset:        ${DATASET_NAME}"
-# python open_instruct/process_dataset.py \
+# python collm/dataset/scoring.py \
 #     --model_name_or_path ${LLAMA_BASE_PATH}/${MODEL_NAME} \
 #     --use_flash_attn \
 #     --use_completion_format \
