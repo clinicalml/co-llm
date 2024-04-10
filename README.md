@@ -134,7 +134,10 @@ Here is an example of how to use the scripts for deferral generation:
 ```bash
 bash scripts/evaluation/gsm8k/deferral_generate.sh
 ```
-In this code, it starts a base server for a deferral-trained Llama-7b model, as well as an assistant model for Llama-70b. Then it uses the `collm/generate.py` scripts to perform collaborative generation with 0.6 deferral threshold. 
+It uses the `scripts/evaluation/generic/deferral_generate.sh` script with three steps: 
+1. Run the deferral search to generate on a small validation set under different deferral frequency
+2. Evaluate the accuracy and pick the best deferral threshold 
+3. Run Co-LLM generation with the optimal threshold. 
 
 
 ## Acknowledgement 
