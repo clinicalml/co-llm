@@ -139,6 +139,9 @@ It uses the `scripts/evaluation/generic/deferral_generate.sh` script with three 
 2. Evaluate the accuracy and pick the best deferral threshold 
 3. Run Co-LLM generation with the optimal threshold. 
 
+We also need to run the `forward.js` script to start a javascript-based batch request forwarding server: `node forward.js`. 
+It will be terribly slow to batch send async requests to the `vllm` server in Python (during the threshold searching stage); so we made this javascript based forwarding server to speed up this process. 
+The dependency is very minimal -- you only need to install `express` and `axios` with `npm install express axios`.
 
 ## Acknowledgement 
 
