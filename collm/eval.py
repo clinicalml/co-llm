@@ -2,13 +2,17 @@ import json
 import os
 import re
 import time
+from glob import glob
+from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 
 import datasets
 import evaluate
+import fire
 import numpy as np
 import pandas as pd
 import shortuuid
+from tqdm import tqdm
 
 exact_match = evaluate.load("exact_match")
 rouge_metric = evaluate.load("rouge")
@@ -100,18 +104,14 @@ class MathEvaluator:
                 if num_prev_digits > 3:
                     # Some fixing
                     string_number = new_string[-num_prev_digits:]
-                    new_string = new_string[:-num_prev_digits] + "{0:,}".format(
-                        int(string_number)
-                    )
+                    new_string = new_string[:-num_prev_digits] + "{0:,}".format(int(string_number))
                 num_prev_digits = 0
             new_string += c
 
         if num_prev_digits > 3:
             # Some fixing
             string_number = new_string[-num_prev_digits:]
-            new_string = new_string[:-num_prev_digits] + "{0:,}".format(
-                int(string_number)
-            )
+            new_string = new_string[:-num_prev_digits] + "{0:,}".format(int(string_number))
 
         return new_string
 
@@ -351,9 +351,7 @@ class MathEvaluator:
             return False, None, answer
 
     def extract_gold_answer(self, gold_answer: str) -> str:
-        return self.remove_text(
-            self.remove_boxed(self.last_boxed_only_string(gold_answer))
-        )
+        return self.remove_text(self.remove_boxed(self.last_boxed_only_string(gold_answer)))
 
 
 # This is based on the official documentation of the BioASQ dataset
@@ -427,11 +425,7 @@ class BioASQEval:
         # Calculate metrics
         precision = tp / (tp + fp) if (tp + fp) > 0 else 0
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-        f1 = (
-            2 * precision * recall / (precision + recall)
-            if (precision + recall) > 0
-            else 0
-        )
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
 
         return {"precision": precision, "recall": recall, "f1": f1}
 
@@ -458,16 +452,7 @@ class BioASQEval:
 
         # Lenient Accuracy
         allowed_answers = pred[:5]  # same as the paper, we allow the top 5 predictions
-        lenient_accuracy = (
-            1
-            if any(
-                [
-                    any([pred in syns for syns in all_answers])
-                    for pred in allowed_answers
-                ]
-            )
-            else 0
-        )
+        lenient_accuracy = 1 if any([any([pred in syns for syns in all_answers]) for pred in allowed_answers]) else 0
 
         # MRR
         mrr = 0
@@ -485,29 +470,19 @@ class BioASQEval:
     def eval_summary(gold: Dict[str, Any], pred: Dict[str, Any]):
         assert pred["ideal_answer"] is not None, "Ideal answer cannot be None"
 
-        references: List[List[str]] = [
-            gold["ideal_answer"]
-        ]  # Multiple references to a target
+        references: List[List[str]] = [gold["ideal_answer"]]  # Multiple references to a target
         predictions: List[str] = [pred["ideal_answer"]]
 
-        rouge_score = rouge_metric.compute(
-            predictions=predictions, references=references, use_aggregator=True
-        )
+        rouge_score = rouge_metric.compute(predictions=predictions, references=references, use_aggregator=True)
         return rouge_score
 
     @staticmethod
     def eval_ideal_answer(gold: Dict[str, Any], pred: Dict[str, Any]):
-        references: List[List[str]] = gold[
-            "ideal_answer"
-        ]  # Multiple references to a target
+        references: List[List[str]] = gold["ideal_answer"]  # Multiple references to a target
         predictions: List[str] = [ele["ideal_answer"] for ele in pred]
-        rouge_score = rouge_metric.compute(
-            predictions=predictions, references=references, use_aggregator=True
-        )
+        rouge_score = rouge_metric.compute(predictions=predictions, references=references, use_aggregator=True)
         rouge_score = {f"ideal_answer_{k}": v for k, v in rouge_score.items()}
-        rouge_score["ideal_answer_aggregated"] = sum(rouge_score.values()) / len(
-            rouge_score
-        )
+        rouge_score["ideal_answer_aggregated"] = sum(rouge_score.values()) / len(rouge_score)
         return rouge_score
 
     def __init__(self):
@@ -605,12 +580,8 @@ class BioASQEval:
                 result = eval_func(orig_data[idx], parsed_pred)
                 all_results[qtype].append(result)
 
-        task_specific_metrics = self.calculate_metrics(
-            all_results, separate_bad_format=separate_bad_format
-        )
-        overall_ideal_answer_metrics = self.eval_ideal_answer(
-            orig_data, all_parsed_preds
-        )
+        task_specific_metrics = self.calculate_metrics(all_results, separate_bad_format=separate_bad_format)
+        overall_ideal_answer_metrics = self.eval_ideal_answer(orig_data, all_parsed_preds)
         return {**task_specific_metrics, **overall_ideal_answer_metrics}
 
     def calculate_metrics(self, result, separate_bad_format=False):
@@ -627,9 +598,7 @@ class BioASQEval:
             )
 
             all_average = all_metrics.mean()
-            selected_average = all_metrics[
-                ["strict_accuracy", "f1", "accuracy", "rouge2"]
-            ].mean()
+            selected_average = all_metrics[["strict_accuracy", "f1", "accuracy", "rouge2"]].mean()
             selected_average2 = all_metrics[["mrr", "f1", "accuracy", "rouge2"]].mean()
 
             all_metrics = all_metrics.to_dict()
@@ -642,21 +611,17 @@ class BioASQEval:
 
 def _add_deferral_probs(pred_data, result):
 
+    # skip for empty predictions
+    pred_data = pred_data.filter(lambda x: x["deferral_prob"] is not None)
+
     if "def_threshold" in pred_data.column_names:
         def_rate = np.array(
-            [
-                (np.array(ele["deferral_prob"]) > ele["def_threshold"]).mean()
-                for ele in pred_data
-            ]
+            [(np.array(ele["deferral_prob"]) > ele["def_threshold"]).mean() for ele in pred_data]
         ).mean()
         th = pred_data["def_threshold"][0]
-        avg_deferral_prob = np.array(
-            [np.array(ele["deferral_prob"]).mean() for ele in pred_data]
-        ).mean()
+        avg_deferral_prob = np.array([np.array(ele["deferral_prob"]).mean() for ele in pred_data]).mean()
     else:
-        def_rate = np.array(
-            [np.array(ele["deferral_prob"]).mean() for ele in pred_data]
-        ).mean()
+        def_rate = np.array([np.array(ele["deferral_prob"]).mean() for ele in pred_data]).mean()
         avg_deferral_prob = None
         # For ablation studies, where we manually control the deferral
         th = None
@@ -671,8 +636,13 @@ def eval_gsm8k(pred_data, orig_data=None, version="v1"):
         pred_data = pred_data["train"]
 
     predictions = []
-    for output in pred_data["generated_text"]:
+    for idx, output in enumerate(pred_data["generated_text"]):
         # replace numbers like `x,xxx` with `xxxx`
+        if output is None:
+            print(f"empty prediction for {idx}")
+            predictions.append("")
+            continue
+
         if version == "v1":
             output = re.sub(r"(\d),(\d)", r"\1\2", output)
             numbers = re.findall(r"[-+]?\d*\.\d+|\d+", output)
@@ -740,10 +710,7 @@ def eval_bbh(pred_data, orig_data):
     result = {"exact_match": em_score, "performance": performance}
     if "deferral_prob" in pred_data.column_names:
         def_rate = np.array(
-            [
-                (np.array(ele["deferral_prob"]) > ele["def_threshold"]).mean()
-                for ele in pred_data
-            ]
+            [(np.array(ele["deferral_prob"]) > ele["def_threshold"]).mean() for ele in pred_data]
         ).mean()
 
         th = pred_data["def_threshold"][0]
@@ -759,10 +726,7 @@ def eval_tydiqa(pred_data, orig_data):
 
     metric = evaluate.load("squad")
     data_languages = set(orig_data["lang"])
-    target = [
-        ele.strip().split("\n\n")[0] if ele else ""
-        for ele in pred_data["generated_text"]
-    ]
+    target = [ele.strip().split("\n\n")[0] if ele else "" for ele in pred_data["generated_text"]]
 
     eval_scores = {}
     for lang in data_languages:
@@ -772,25 +736,15 @@ def eval_tydiqa(pred_data, orig_data):
             if example["lang"] == lang
         ]
         lang_references = [
-            {"id": example["id"], "answers": example["answers"]}
-            for example in orig_data
-            if example["lang"] == lang
+            {"id": example["id"], "answers": example["answers"]} for example in orig_data if example["lang"] == lang
         ]
-        eval_scores[lang] = metric.compute(
-            predictions=lang_predictions, references=lang_references
-        )
+        eval_scores[lang] = metric.compute(predictions=lang_predictions, references=lang_references)
 
     eval_scores["average"] = {
-        metric: np.mean([scores[metric] for scores in eval_scores.values()])
-        for metric in ["exact_match", "f1"]
+        metric: np.mean([scores[metric] for scores in eval_scores.values()]) for metric in ["exact_match", "f1"]
     }
 
-    def_rate = np.array(
-        [
-            (np.array(ele["deferral_prob"]) > ele["def_threshold"]).mean()
-            for ele in pred_data
-        ]
-    ).mean()
+    def_rate = np.array([(np.array(ele["deferral_prob"]) > ele["def_threshold"]).mean() for ele in pred_data]).mean()
     th = pred_data["def_threshold"][0]
 
     return {
@@ -881,9 +835,7 @@ def eval_mmlu(pred_data, orig_data, verbose=False):
     pred_df = pd.DataFrame(predictions, columns=["subset", "label", "pred"])
     result = {
         "exact_match": (pred_df["label"] == pred_df["pred"]).mean(),
-        "performance": pred_df.groupby("subset")
-        .apply(lambda gp: (gp["label"] == gp["pred"]).mean())
-        .to_dict(),
+        "performance": pred_df.groupby("subset").apply(lambda gp: (gp["label"] == gp["pred"]).mean()).to_dict(),
     }
 
     if "deferral_prob" in pred_data.column_names:
@@ -918,9 +870,7 @@ def eval_bioasq(
 def process_mtbench(pred_data_path, model_name=""):
 
     ds = datasets.load_from_disk(os.path.join(pred_data_path, "dataset"))
-    ds2 = datasets.load_dataset(
-        "json", data_files=os.path.join(pred_data_path, "generations.json")
-    )["train"]
+    ds2 = datasets.load_dataset("json", data_files=os.path.join(pred_data_path, "generations.json"))["train"]
 
     # Cache the files
     ans_json = []
@@ -963,10 +913,95 @@ def eval_mtbench(pred_data_path, orig_df):
         result["category_" + gp["category"].iloc[0]] = gp["score"].mean()
 
     # if "train" in pred_data.column_names:
-    pred_data = datasets.load_dataset(
-        "json", data_files=os.path.join(pred_data_path, "generations.json")
-    )["train"]
+    pred_data = datasets.load_dataset("json", data_files=os.path.join(pred_data_path, "generations.json"))["train"]
     if "deferral_prob" in pred_data.column_names:
         _add_deferral_probs(pred_data, result)
 
     return result
+
+
+EVALUATORS = {
+    "gsm8k": eval_gsm8k,
+    "bbh": eval_bbh,
+    "tydiqa": eval_tydiqa,
+    "math": eval_math,
+    "mmlu": eval_mmlu,
+    "bioasq": eval_bioasq,
+    "mtbench": eval_mtbench,
+}
+
+TARGET_METRIC = {
+    "gsm8k": "exact_match",
+    "math": "exact_match",
+}
+
+
+def eval(
+    task_name,
+    orig_data_path,
+    pred_data_path,
+    **kwargs,
+):
+    evaluator = EVALUATORS[task_name]
+    orig_data = datasets.load_from_disk(orig_data_path)
+    pred_data = datasets.load_dataset("json", data_files=pred_data_path)
+    result = evaluator(pred_data, orig_data, **kwargs)
+
+    pred_data_folder = Path(pred_data_path).parent
+
+    with open(os.path.join(pred_data_folder, "eval.json"), "w") as f:
+        json.dump(result, f, indent=4)
+
+    return result
+
+
+def eval_folder(
+    task_name,
+    orig_data_path,
+    pred_data_folder,
+    **kwargs,
+):
+    evaluator = EVALUATORS[task_name]
+    orig_data = datasets.load_from_disk(orig_data_path)
+
+    # print(kwargs)
+    all_results = []
+    for pred_data_path in tqdm(sorted(glob(pred_data_folder + "/defer-*/generations.json"))):
+
+        pred_data = datasets.load_dataset("json", data_files=pred_data_path)
+        result = evaluator(pred_data, orig_data, **kwargs)
+        all_results.append(result)
+
+    if task_name == "math":
+        # fix the dict issue
+        for result in all_results:
+            result["performances"] = [[*key, val] for key, val in result["performances"].items()]
+
+    print(all_results)
+    with open(os.path.join(pred_data_folder, "eval.json"), "w") as f:
+        json.dump(all_results, f, indent=4)
+
+    if os.path.exists(pred_data_folder + "/deferral_threshold.csv"):
+
+        df_th = pd.read_csv(pred_data_folder + "/deferral_threshold.csv")
+        df_acc = pd.DataFrame(all_results).rename(columns={"threshold": "deferral_threshold"})
+        df_merged = pd.merge_asof(
+            df_th.sort_values("deferral_threshold"),
+            df_acc.sort_values("deferral_threshold"),
+            on="deferral_threshold",
+            tolerance=1e-5,
+            direction="nearest",
+        ).sort_values(TARGET_METRIC[task_name], ascending=False)
+
+        df_merged.to_csv(pred_data_folder + "/eval_with_deferral_threshold.csv", index=False)
+
+    return all_results
+
+
+if __name__ == "__main__":
+    fire.Fire(
+        {
+            "eval": eval,
+            "eval_folder": eval_folder,
+        }
+    )
