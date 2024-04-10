@@ -43,9 +43,7 @@ DEFAULT_COLORS = [
 ]
 
 # Enable logging
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -57,9 +55,7 @@ def create_prompt_with_tulu_chat_format(messages, bos="<s>", eos="</s>", add_bos
         elif message["role"] == "user":
             formatted_text += "<|user|>\n" + message["content"] + "\n"
         elif message["role"] == "assistant":
-            formatted_text += (
-                "<|assistant|>\n" + message["content"].strip() + eos + "\n"
-            )
+            formatted_text += "<|assistant|>\n" + message["content"].strip() + eos + "\n"
         else:
             raise ValueError(
                 "Tulu chat template only supports 'system', 'user' and 'assistant' roles. Invalid role: {}.".format(
@@ -71,9 +67,7 @@ def create_prompt_with_tulu_chat_format(messages, bos="<s>", eos="</s>", add_bos
     return formatted_text
 
 
-def visualize_deferral_generation(
-    cur_generated_tokens, is_generated_token_deferred, tokenizer
-):
+def visualize_deferral_generation(cur_generated_tokens, is_generated_token_deferred, tokenizer):
     tokens = tokenizer.convert_ids_to_tokens(cur_generated_tokens)
 
     current_sub_tokens = []
@@ -97,9 +91,7 @@ def visualize_deferral_generation(
     for piece, is_deferred in zip(proto.pieces, current_sub_deferral):
         word = proto.text[piece.begin : piece.end]
         if is_deferred:
-            styled_text.append(
-                Text().from_markup(f"[bold on {DEFAULT_COLORS[-1]}]{word}[/]")
-            )
+            styled_text.append(Text().from_markup(f"[bold on {DEFAULT_COLORS[-1]}]{word}[/]"))
         else:
             styled_text.append(Text().from_markup(f"[on {DEFAULT_COLORS[0]}]{word}[/]"))
 
@@ -144,10 +136,7 @@ def dict_to_request_output(data: Dict):
             token_ids=output["token_ids"],
             cumulative_logprob=output["cumulative_logprob"],
             logprobs=(
-                [
-                    {int(key): val for key, val in logprob.items()}
-                    for logprob in output.get("logprobs")
-                ]
+                [{int(key): val for key, val in logprob.items()} for logprob in output.get("logprobs")]
                 if output.get("logprobs")
                 else None
             ),
@@ -170,9 +159,7 @@ def dict_to_request_output(data: Dict):
     return obj
 
 
-def is_contain_stop_sequence(
-    generated: List[int], stop_sequences: List[List[int]], tokens_per_call: int
-):
+def is_contain_stop_sequence(generated: List[int], stop_sequences: List[List[int]], tokens_per_call: int):
     for stop_index in reversed(range(0, tokens_per_call)):
         for stop_seq in stop_sequences:
             start_index = max(len(generated) - stop_index - len(stop_seq), 0)
@@ -182,9 +169,7 @@ def is_contain_stop_sequence(
     return False
 
 
-def find_stop_sequence(
-    generated: List[int], stop_sequences: List[List[int]], tokens_per_call: int
-):
+def find_stop_sequence(generated: List[int], stop_sequences: List[List[int]], tokens_per_call: int):
     for stop_index in reversed(range(0, tokens_per_call)):
         for stop_seq in stop_sequences:
             start_index = max(len(generated) - stop_index - len(stop_seq), 0)
@@ -192,16 +177,12 @@ def find_stop_sequence(
             if generated[start_index:end_index] == stop_seq:
                 return (
                     True,
-                    generated[
-                        len(generated) - tokens_per_call : len(generated) - stop_index
-                    ],
+                    generated[len(generated) - tokens_per_call : len(generated) - stop_index],
                 )
     return False, None
 
 
-def is_contain_stop_pattern(
-    pattern: str, generated: List[int], tokenizer: transformers.PreTrainedTokenizer
-):
+def is_contain_stop_pattern(pattern: str, generated: List[int], tokenizer: transformers.PreTrainedTokenizer):
     generated_text = tokenizer.decode(generated, skip_special_tokens=True)
     # print(bool(re.search(pattern, generated_text)), generated_text)
     return bool(re.search(pattern, generated_text))
@@ -259,10 +240,7 @@ def get_next_prediction(
     return reference_output, all_logprobs
 
 
-
-def get_next_prediction_batch(
-    forward_url: Union[List, str], prompt_token_id_list, max_tokens, url, **kwargs
-):
+def get_next_prediction_batch(forward_url: Union[List, str], prompt_token_id_list, max_tokens, url, **kwargs):
     if isinstance(forward_url, list):
         forward_url = random.choice(forward_url)
 
@@ -292,6 +270,7 @@ def get_next_prediction_batch(
 
 MODEL_INPUT_COL_NAME = "model_input"
 
+
 def deferral_search(
     generated_token_ids,
     first_deferral_position,
@@ -319,9 +298,7 @@ def deferral_search(
     if not use_batch_scoring:
         base_model_scoring = [
             get_next_prediction_base(
-                prompt_token_ids
-                + generated_token_ids[:first_deferral_position]
-                + [token],
+                prompt_token_ids + generated_token_ids[:first_deferral_position] + [token],
                 search_length,
             )[0]
             for token in reference_top_tokens
@@ -329,17 +306,13 @@ def deferral_search(
     else:
         base_model_scoring = get_next_prediction_batch_base(
             [
-                prompt_token_ids
-                + generated_token_ids[:first_deferral_position]
-                + [token]
+                prompt_token_ids + generated_token_ids[:first_deferral_position] + [token]
                 for token in reference_top_tokens
             ],
             search_length,
         )
 
-    top_token_idx = np.argmax(
-        [item.outputs[0].cumulative_logprob for item in base_model_scoring]
-    )
+    top_token_idx = np.argmax([item.outputs[0].cumulative_logprob for item in base_model_scoring])
     top_token = reference_top_tokens[top_token_idx]
 
     return top_token
@@ -369,10 +342,7 @@ def find_optimal_deferral_threshold(
         all_output_base, logprobs_base = get_next_prediction_base(prompt_tokens, 512)
 
         generated_tokens = all_output_base.outputs[0].token_ids
-        all_segmented_sequences = [
-            prompt_tokens + generated_tokens[:i]
-            for i in range(0, len(generated_tokens))
-        ]
+        all_segmented_sequences = [prompt_tokens + generated_tokens[:i] for i in range(0, len(generated_tokens))]
 
         cur_example = {
             "prompt": example["model_input"],
@@ -413,9 +383,7 @@ def find_optimal_deferral_threshold(
     optimal_threshold = thresholds[idx]
 
     plt.figure()
-    plt.plot(
-        fpr, tpr, color="darkorange", lw=2, label="ROC curve (area = %0.2f)" % roc_auc
-    )
+    plt.plot(fpr, tpr, color="darkorange", lw=2, label="ROC curve (area = %0.2f)" % roc_auc)
     plt.plot([0, 1], [0, 1], color="navy", lw=2, linestyle="--")
 
     # Set limits to prevent overlap with edges
@@ -464,13 +432,9 @@ def calibrate_deferral_probability(
     save_path: Path,
 ):
     deferral_threshold_search_path = save_path / f"generated_examples-{n_samples}.json"
-    assert (
-        deferral_threshold_search_path.exists()
-    ), f"Could not find {deferral_threshold_search_path}"
+    assert deferral_threshold_search_path.exists(), f"Could not find {deferral_threshold_search_path}"
 
-    ds = datasets.load_dataset("json", data_files=str(deferral_threshold_search_path))[
-        "train"
-    ]
+    ds = datasets.load_dataset("json", data_files=str(deferral_threshold_search_path))["train"]
 
     all_probs = sum(ds["deferral_probs"], [])
     all_probs.sort()  # Sort the list of probabilities
@@ -526,9 +490,7 @@ def _exponential_warmup(step, warmup_steps, start_value, end_value):
 
 def _cosine_warmup(step, warmup_steps, start_value, end_value):
     if step < warmup_steps:
-        value = end_value + (start_value - end_value) / 2 * (
-            math.cos(math.pi * step / warmup_steps) + 1
-        )
+        value = end_value + (start_value - end_value) / 2 * (math.cos(math.pi * step / warmup_steps) + 1)
     else:
         value = end_value
     return value
@@ -563,12 +525,7 @@ def create_deferral_threshold_schedule(
     else:
         raise ValueError(f"Unknown warmup schedule: {warmup_schedule}")
 
-    return torch.Tensor(
-        [
-            warmup_func(step, warmup_steps, start_value, end_value)
-            for step in range(total_step)
-        ]
-    )
+    return torch.Tensor([warmup_func(step, warmup_steps, start_value, end_value) for step in range(total_step)])
 
 
 def generate_response(
@@ -589,10 +546,7 @@ def generate_response(
 ):
     if stop_sequences is not None:
         if isinstance(stop_sequences[0], str):
-            stop_sequences = [
-                tokenizer_base.encode(" " + seq, add_special_tokens=False)[1:]
-                for seq in stop_sequences
-            ]
+            stop_sequences = [tokenizer_base.encode(" " + seq, add_special_tokens=False)[1:] for seq in stop_sequences]
 
     try:
         idx, prompt = prompt
@@ -619,14 +573,10 @@ def generate_response(
         eos_reached = False
 
         while not eos_reached and total_generated < max_tokens:
-            output_base, log_probs_base = get_next_prediction_base(
-                prompt_token_ids, tokens_per_call
-            )
+            output_base, log_probs_base = get_next_prediction_base(prompt_token_ids, tokens_per_call)
 
             # generated_token_ids = output_base.outputs[0].token_ids
-            generated_token_ids = (
-                log_probs_base[:, :vocab_size_ref].argmax(dim=-1).tolist()
-            )
+            generated_token_ids = log_probs_base[:, :vocab_size_ref].argmax(dim=-1).tolist()
             # Make sure not generating tokens outside of the base vocab
 
             # Firstly we handle the deferral logic here.
@@ -634,9 +584,7 @@ def generate_response(
             deferral_probs = torch.sigmoid(log_probs_base[:, -1])
 
             # We find the deferral thresholds for the current steps
-            cur_deferral_thresholds = deferral_thresholds[
-                total_generated : total_generated + len(deferral_probs)
-            ]
+            cur_deferral_thresholds = deferral_thresholds[total_generated : total_generated + len(deferral_probs)]
             # print(total_generated, cur_deferral_thresholds)
             is_deferral = deferral_probs > cur_deferral_thresholds
             # if False:
@@ -668,9 +616,7 @@ def generate_response(
 
                 elif deferral_strategy == "compose":
                     def_prob = deferral_probs[first_deferral_position]
-                    base_probs = log_probs_base[
-                        first_deferral_position, :vocab_size_ref
-                    ].exp()
+                    base_probs = log_probs_base[first_deferral_position, :vocab_size_ref].exp()
                     ref_probs = log_probs_ref[0, :vocab_size_ref].exp()
                     combined_probs = (1 - def_prob) * base_probs + def_prob * ref_probs
                     deferral_token = combined_probs.argmax().item()
@@ -682,9 +628,7 @@ def generate_response(
                                 top_5_tokens.values[_token_idx],
                             )
 
-                generated_token_ids = generated_token_ids[:first_deferral_position] + [
-                    deferral_token
-                ]
+                generated_token_ids = generated_token_ids[:first_deferral_position] + [deferral_token]
 
             # The total generated tokens here is used for checking the max_tokens condition
             total_generated += len(generated_token_ids)
@@ -737,9 +681,7 @@ def generate_response(
         return {
             "idx": idx,
             "generated_tokens": generated,
-            "generated_text": tokenizer_base.decode(
-                generated, skip_special_tokens=True
-            ),
+            "generated_text": tokenizer_base.decode(generated, skip_special_tokens=True),
             "deferral_prob": deferral_for_tokens.tolist(),
             "def_threshold": def_threshold,
             "actual_deferral_threshold": deferral_threshold_for_tokens.tolist(),
@@ -795,12 +737,8 @@ def pick_deferral_threshold(
     ds = datasets.load_from_disk(dataset)
     logger.debug(f"Loaded dataset {dataset}")
 
-    tokenizer_base = transformers.AutoTokenizer.from_pretrained(
-        tokenizer_name_base, use_fast=False
-    )
-    tokenizer_ref = transformers.AutoTokenizer.from_pretrained(
-        tokenizer_name_ref, use_fast=False
-    )
+    tokenizer_base = transformers.AutoTokenizer.from_pretrained(tokenizer_name_base, use_fast=False)
+    tokenizer_ref = transformers.AutoTokenizer.from_pretrained(tokenizer_name_ref, use_fast=False)
 
     base_model_url = f"http://localhost:{base_model_port}/generate"
     get_next_prediction_base = functools.partial(
@@ -808,9 +746,7 @@ def pick_deferral_threshold(
     )
 
     ref_model_url = f"http://localhost:{ref_model_port}/generate"
-    get_next_prediction_ref = functools.partial(
-        get_next_prediction, url=ref_model_url, vocab_size=len(tokenizer_ref)
-    )
+    get_next_prediction_ref = functools.partial(get_next_prediction, url=ref_model_url, vocab_size=len(tokenizer_ref))
 
     batch_gen_url = f"http://localhost:{batch_gen_port}/batch_generate"
     get_next_prediction_batch_ref = functools.partial(
@@ -835,16 +771,14 @@ def pick_deferral_threshold(
         all_thresholds = calibrate_deferral_probability(n_samples_for_search, save_path)
         all_thresholds = {f"{key:.2f}": value for key, value in all_thresholds}
         all_thresholds["optimal"] = optimal_deferral_threshold
-        pd.DataFrame(
-            all_thresholds.items(), columns=["portion", "deferral_threshold"]
-        ).to_csv(save_path / "deferral_threshold.csv", index=False)
+        pd.DataFrame(all_thresholds.items(), columns=["portion", "deferral_threshold"]).to_csv(
+            save_path / "deferral_threshold.csv", index=False
+        )
     else:
         logger.debug("Loading deferral thresholds")
         all_thresholds = calibrate_deferral_probability(n_samples_for_search, save_path)
         all_thresholds = {f"{key:.2f}": value for key, value in all_thresholds}
-        optimal_deferral_threshold = pd.read_csv(
-            save_path / "deferral_threshold.csv"
-        ).iloc[-1, -1]
+        optimal_deferral_threshold = pd.read_csv(save_path / "deferral_threshold.csv").iloc[-1, -1]
         print(optimal_deferral_threshold)
         all_thresholds["optimal"] = optimal_deferral_threshold
 
@@ -901,7 +835,7 @@ def generate_deferral(
     tokenizer_name_ref=None,
     tokenizer_name_base=None,
     tokens_per_call=10,
-    deferral_threshold=0.5,
+    deferral_threshold=None,
     deferral_strategy="defer",
     threshold_warmup_schedule: Optional[str] = None,
     threshold_warmup_steps: int = 15,
@@ -916,18 +850,31 @@ def generate_deferral(
     check_url(ref_model_port)
 
     save_path = Path(save_path)
+
+    if deferral_threshold is None:
+        if save_path / "_deferral_search" / "eval_with_deferral_threshold.csv":
+            deferral_threshold = pd.read_csv(save_path / "_deferral_search" / "eval_with_deferral_threshold.csv").iloc[
+                0
+            ]["deferral_threshold"]
+            logger.warn(f"Using deferral threshold {deferral_threshold}")
+        elif save_path / "_deferral_search" / "deferral_threshold.csv":
+            deferral_threshold = pd.read_csv(save_path / "_deferral_search" / "deferral_threshold.csv").iloc[
+                -1, -1
+            ]  # TODO
+            logger.warn(f"Using deferral threshold {deferral_threshold}")
+        else:
+            deferral_threshold = 0.5
+            logger.warn(f"Using deferral threshold {deferral_threshold}")
+        save_path = save_path / f"deferral-{deferral_threshold}"
+
     save_path.mkdir(exist_ok=True, parents=True)
     logger.debug(f"Saving to {save_path}")
 
     ds = datasets.load_from_disk(dataset)
     logger.debug(f"Loaded dataset {dataset}")
 
-    tokenizer_ref = transformers.AutoTokenizer.from_pretrained(
-        tokenizer_name_ref, use_fast=False
-    )
-    tokenizer_base = transformers.AutoTokenizer.from_pretrained(
-        tokenizer_name_base, use_fast=False
-    )
+    tokenizer_ref = transformers.AutoTokenizer.from_pretrained(tokenizer_name_ref, use_fast=False)
+    tokenizer_base = transformers.AutoTokenizer.from_pretrained(tokenizer_name_base, use_fast=False)
 
     base_model_url = f"http://localhost:{base_model_port}/generate"
     get_next_prediction_base = functools.partial(
@@ -935,9 +882,7 @@ def generate_deferral(
     )
 
     ref_model_url = f"http://localhost:{ref_model_port}/generate"
-    get_next_prediction_ref = functools.partial(
-        get_next_prediction, url=ref_model_url, vocab_size=len(tokenizer_ref)
-    )
+    get_next_prediction_ref = functools.partial(get_next_prediction, url=ref_model_url, vocab_size=len(tokenizer_ref))
 
     batch_gen_url = f"http://localhost:{batch_gen_port}/batch_generate"
     get_next_prediction_batch_ref = functools.partial(
@@ -961,10 +906,7 @@ def generate_deferral(
         logger.debug(f"Using deferral threshold {optimal_deferral_threshold}")
 
     batch_size = 1
-    prompts = [
-        (i, ds[i : i + batch_size][MODEL_INPUT_COL_NAME][0])
-        for i in range(0, len(ds), batch_size)
-    ]
+    prompts = [(i, ds[i : i + batch_size][MODEL_INPUT_COL_NAME][0]) for i in range(0, len(ds), batch_size)]
 
     partial_generate_response = functools.partial(
         generate_response,
@@ -1005,9 +947,7 @@ def generate_deferral(
         json.dump(all_responses, f)
 
     pred = datasets.Dataset.from_list(all_responses)
-    ds.add_column("generated_tokens", pred["generated_tokens"]).save_to_disk(
-        f"{save_path}/dataset"
-    )
+    ds.add_column("generated_tokens", pred["generated_tokens"]).save_to_disk(f"{save_path}/dataset")
 
 
 # We have to move it outside to make it picklable
@@ -1063,12 +1003,8 @@ def generate_response_deferral_adaptative_threshold(
     ds = datasets.load_from_disk(dataset)
     logger.debug(f"Loaded dataset {dataset}")
 
-    tokenizer_ref = transformers.AutoTokenizer.from_pretrained(
-        tokenizer_name_ref, use_fast=False
-    )
-    tokenizer_base = transformers.AutoTokenizer.from_pretrained(
-        tokenizer_name_base, use_fast=False
-    )
+    tokenizer_ref = transformers.AutoTokenizer.from_pretrained(tokenizer_name_ref, use_fast=False)
+    tokenizer_base = transformers.AutoTokenizer.from_pretrained(tokenizer_name_base, use_fast=False)
 
     threshold_per_instance = pd.read_csv(threshold_file, index_col=0)["threshold"]
 
@@ -1097,9 +1033,7 @@ def generate_response_deferral_adaptative_threshold(
     if num_proc == 1:
         all_responses = []
         for prompt in tqdm(composite_prompts, desc="generate_response"):
-            all_responses.append(
-                generate_response_with_per_instance_threshold_partial(prompt)
-            )
+            all_responses.append(generate_response_with_per_instance_threshold_partial(prompt))
     else:
         with multiprocessing.Pool(num_proc) as p:
             all_responses = list(
@@ -1117,9 +1051,7 @@ def generate_response_deferral_adaptative_threshold(
         json.dump(all_responses, f)
 
     pred = datasets.Dataset.from_list(all_responses)
-    ds.add_column("generated_tokens", pred["generated_tokens"]).save_to_disk(
-        f"{save_path}/dataset"
-    )
+    ds.add_column("generated_tokens", pred["generated_tokens"]).save_to_disk(f"{save_path}/dataset")
 
 
 def generate_multi_turn(
@@ -1154,13 +1086,9 @@ def generate_multi_turn(
         ds = ds.select(range(3))
 
     if tokenizer_name_ref:
-        tokenizer_ref = transformers.AutoTokenizer.from_pretrained(
-            tokenizer_name_ref, use_fast=False
-        )
+        tokenizer_ref = transformers.AutoTokenizer.from_pretrained(tokenizer_name_ref, use_fast=False)
     if tokenizer_name_base:
-        tokenizer_base = transformers.AutoTokenizer.from_pretrained(
-            tokenizer_name_base, use_fast=False
-        )
+        tokenizer_base = transformers.AutoTokenizer.from_pretrained(tokenizer_name_base, use_fast=False)
 
     flatten_questions = []
     all_responses = []
@@ -1169,9 +1097,7 @@ def generate_multi_turn(
         current_message = []
         generated_responses = []
         for turn_id in range(len(question["turns"])):
-            current_message.append(
-                {"role": "user", "content": question["turns"][turn_id].strip()}
-            )
+            current_message.append({"role": "user", "content": question["turns"][turn_id].strip()})
             prompt = create_prompt_with_tulu_chat_format(current_message)
 
             if no_deferral:
@@ -1202,9 +1128,7 @@ def generate_multi_turn(
             all_responses.append(response)
 
             generated_responses.append(response["generated_text"].strip())
-            current_message.append(
-                {"role": "assistant", "content": response["generated_text"].strip()}
-            )
+            current_message.append({"role": "assistant", "content": response["generated_text"].strip()})
 
             flatten_questions.append(
                 {
@@ -1284,6 +1208,8 @@ def generate_default(
     tokenizer_name_base=None,
     debug=False,
 ):
+    check_url(model_port)
+
     save_path = Path(save_path)
     save_path.mkdir(exist_ok=True, parents=True)
     logger.debug(f"Saving to {save_path}")
@@ -1291,20 +1217,13 @@ def generate_default(
     ds = datasets.load_from_disk(dataset)
     logger.debug(f"Loaded dataset {dataset}")
 
-    tokenizer_base = transformers.AutoTokenizer.from_pretrained(
-        tokenizer_name_base, use_fast=False
-    )
+    tokenizer_base = transformers.AutoTokenizer.from_pretrained(tokenizer_name_base, use_fast=False)
 
     batch_size = 1
-    prompts = [
-        (i, ds[i : i + batch_size][MODEL_INPUT_COL_NAME][0])
-        for i in range(0, len(ds), batch_size)
-    ]
+    prompts = [(i, ds[i : i + batch_size][MODEL_INPUT_COL_NAME][0]) for i in range(0, len(ds), batch_size)]
 
     model_url = f"http://localhost:{model_port}/generate"
-    get_next_prediction_api = functools.partial(
-        get_next_prediction, url=model_url, vocab_size=len(tokenizer_base)
-    )
+    get_next_prediction_api = functools.partial(get_next_prediction, url=model_url, vocab_size=len(tokenizer_base))
 
     partial_generate_response_default = functools.partial(
         generate_response_default,
@@ -1355,10 +1274,7 @@ def generate_composite_response(
 
     if stop_sequences is not None:
         if isinstance(stop_sequences[0], str):
-            stop_sequences = [
-                tokenizer_base.encode(" " + seq, add_special_tokens=False)[1:]
-                for seq in stop_sequences
-            ]
+            stop_sequences = [tokenizer_base.encode(" " + seq, add_special_tokens=False)[1:] for seq in stop_sequences]
 
     assert deferral_strategy in ["random", "greedy", "cd", "cd_v2", "proxy"]
 
@@ -1378,25 +1294,17 @@ def generate_composite_response(
         eos_reached = False
 
         while not eos_reached and total_generated < max_tokens:
-            output_base, log_probs_base = get_next_prediction_base(
-                prompt_token_ids, tokens_per_call
-            )
+            output_base, log_probs_base = get_next_prediction_base(prompt_token_ids, tokens_per_call)
 
             # generated_token_ids = output_base.outputs[0].token_ids
-            generated_token_ids = (
-                log_probs_base[:, :vocab_size_ref].argmax(dim=-1).tolist()
-            )
+            generated_token_ids = log_probs_base[:, :vocab_size_ref].argmax(dim=-1).tolist()
             # Make sure not generating tokens outside of the base vocab
 
             # Firstly we handle the deferral logic here.
             if deferral_strategy == "random":
-                is_deferral = deferral_probs = torch.bernoulli(
-                    torch.full((len(generated_token_ids),), 0.5)
-                ).bool()
+                is_deferral = deferral_probs = torch.bernoulli(torch.full((len(generated_token_ids),), 0.5)).bool()
             elif deferral_strategy in ["greedy", "cd", "cd_v2", "proxy"]:
-                is_deferral = deferral_probs = torch.tensor(
-                    [True] * len(generated_token_ids)
-                )
+                is_deferral = deferral_probs = torch.tensor([True] * len(generated_token_ids))
 
             assert len(is_deferral) == tokens_per_call
 
@@ -1448,9 +1356,7 @@ def generate_composite_response(
 
                     if debug:
                         print(f"deferral_token_id: {deferral_token}")
-                        print(
-                            f"deferral_token: {tokenizer_base.decode(deferral_token)}"
-                        )
+                        print(f"deferral_token: {tokenizer_base.decode(deferral_token)}")
 
                 elif deferral_strategy == "cd":
                     # Conversion between the terminologies
@@ -1459,10 +1365,7 @@ def generate_composite_response(
                     # log_probs_ref   ===> Expert Model
 
                     # cut_off = alpha*ref_token_prob.max(dim=-1, keepdim=True).values
-                    diffs = (
-                        log_probs_ref[:, :vocab_size_ref]
-                        - log_probs_base[:, :vocab_size_ref]
-                    )
+                    diffs = log_probs_ref[:, :vocab_size_ref] - log_probs_base[:, :vocab_size_ref]
                     # cd_logits = diffs.masked_fill(ref_token_prob < cut_off, -float('inf'))
 
                     # Since we do not do sampling, we do not need to worry about the cutoff
@@ -1477,20 +1380,11 @@ def generate_composite_response(
                     # Also in this case, the log_probs_ref and log_probs_base are
                     # unnormalized logits from LMs (we guarantee from the caller)
 
-                    alpha = kwargs.get(
-                        "alpha", 0.1
-                    )  # 0.1 is the default value used in the paper
-                    cutoff = (
-                        torch.log(torch.tensor(alpha))
-                        + log_probs_ref.max(dim=-1, keepdim=True).values
-                    )
+                    alpha = kwargs.get("alpha", 0.1)  # 0.1 is the default value used in the paper
+                    cutoff = torch.log(torch.tensor(alpha)) + log_probs_ref.max(dim=-1, keepdim=True).values
 
-                    beta = kwargs.get(
-                        "beta", 0.5
-                    )  # 0.5 is the default value used in the paper
-                    diffs = (1 + beta) * log_probs_ref[
-                        :, :vocab_size_ref
-                    ] - beta * log_probs_base[:, :vocab_size_ref]
+                    beta = kwargs.get("beta", 0.5)  # 0.5 is the default value used in the paper
+                    diffs = (1 + beta) * log_probs_ref[:, :vocab_size_ref] - beta * log_probs_base[:, :vocab_size_ref]
 
                     diffs = diffs.masked_fill(diffs < cutoff, -float("inf"))
                     deferral_token = diffs.argmax(dim=-1)[0].item()
@@ -1503,9 +1397,7 @@ def generate_composite_response(
                         print(
                             f"ref_prob_top_5_ids_and_values: {log_probs_ref[0].topk(5).indices} {log_probs_ref[0].topk(5).values}"
                         )
-                        print(
-                            f"cd_top_5_ids_and_values: {diffs[0].topk(5).indices} {diffs[0].topk(5).values}"
-                        )
+                        print(f"cd_top_5_ids_and_values: {diffs[0].topk(5).indices} {diffs[0].topk(5).values}")
                         print(deferral_token)
 
                 elif deferral_strategy == "proxy":
@@ -1520,8 +1412,7 @@ def generate_composite_response(
                     # unnormalized logits from LMs (we guarantee from the caller)
 
                     output_extra, log_probs_extra = get_next_prediction_extra(
-                        prompt_token_ids
-                        + generated_token_ids[:first_deferral_position],
+                        prompt_token_ids + generated_token_ids[:first_deferral_position],
                         1,
                     )
 
@@ -1549,9 +1440,7 @@ def generate_composite_response(
                         )
                         print(deferral_token)
 
-                generated_token_ids = generated_token_ids[:first_deferral_position] + [
-                    deferral_token
-                ]
+                generated_token_ids = generated_token_ids[:first_deferral_position] + [deferral_token]
 
             # The total generated tokens here is used for checking the max_tokens condition
             total_generated += len(generated_token_ids)
@@ -1587,9 +1476,7 @@ def generate_composite_response(
             if debug:
                 print(f"step {step_count}")
                 # TODO: fix this
-                visualize_deferral_generation(
-                    generated, torch.cat(deferral_for_tokens), tokenizer_base
-                )
+                visualize_deferral_generation(generated, torch.cat(deferral_for_tokens), tokenizer_base)
 
             if eos_reached:
                 break  # Break from while not eos_reached
@@ -1605,9 +1492,7 @@ def generate_composite_response(
         return {
             "idx": idx,
             "generated_tokens": generated,
-            "generated_text": tokenizer_base.decode(
-                generated, skip_special_tokens=True
-            ),
+            "generated_text": tokenizer_base.decode(generated, skip_special_tokens=True),
             "deferral_prob": deferral_for_tokens.tolist(),
         }
     except Exception as e:
@@ -1685,18 +1570,11 @@ def generate_ablation(
     ds = datasets.load_from_disk(dataset)
     logger.debug(f"Loaded dataset {dataset}")
 
-    tokenizer_base = transformers.AutoTokenizer.from_pretrained(
-        tokenizer_name_base, use_fast=False
-    )
-    tokenizer_ref = transformers.AutoTokenizer.from_pretrained(
-        tokenizer_name_ref, use_fast=False
-    )
+    tokenizer_base = transformers.AutoTokenizer.from_pretrained(tokenizer_name_base, use_fast=False)
+    tokenizer_ref = transformers.AutoTokenizer.from_pretrained(tokenizer_name_ref, use_fast=False)
 
     batch_size = 1
-    prompts = [
-        (i, ds[i : i + batch_size][MODEL_INPUT_COL_NAME][0])
-        for i in range(0, len(ds), batch_size)
-    ]
+    prompts = [(i, ds[i : i + batch_size][MODEL_INPUT_COL_NAME][0]) for i in range(0, len(ds), batch_size)]
 
     base_model_url = f"http://localhost:{base_model_port}/generate"
     get_next_prediction_base = functools.partial(
@@ -1704,18 +1582,14 @@ def generate_ablation(
     )
 
     ref_model_url = f"http://localhost:{ref_model_port}/generate"
-    get_next_prediction_ref = functools.partial(
-        get_next_prediction, url=ref_model_url, vocab_size=len(tokenizer_ref)
-    )
+    get_next_prediction_ref = functools.partial(get_next_prediction, url=ref_model_url, vocab_size=len(tokenizer_ref))
 
     if deferral_strategy == "proxy":
         assert extra_model_port is not None
         assert tokenizer_name_extra is not None
 
         extra_model_url = f"http://localhost:{extra_model_port}/generate"
-        tokenizer_extra = transformers.AutoTokenizer.from_pretrained(
-            tokenizer_name_extra, use_fast=False
-        )
+        tokenizer_extra = transformers.AutoTokenizer.from_pretrained(tokenizer_name_extra, use_fast=False)
         get_next_prediction_extra = functools.partial(
             get_next_prediction, url=extra_model_url, vocab_size=len(tokenizer_extra)
         )
@@ -1748,9 +1622,7 @@ def generate_ablation(
                 )
 
             if deferral_strategy == "proxy":
-                _, logits = get_next_prediction_extra(
-                    test_prompt_token_ids, max_tokens=1
-                )
+                _, logits = get_next_prediction_extra(test_prompt_token_ids, max_tokens=1)
                 print("extra_logits", logits)
                 logits_sum = logits.exp().sum(dim=-1)
                 print(logits_sum)
@@ -1782,9 +1654,7 @@ def generate_ablation(
         with open(save_path / "generations.json", "r") as f:
             existing_responses = json.load(f)
 
-        empty_ids = [
-            ele["idx"] for ele in existing_responses if ele["generated_tokens"] is None
-        ]
+        empty_ids = [ele["idx"] for ele in existing_responses if ele["generated_tokens"] is None]
         prompts = [ele for ele in prompts if ele[0] in empty_ids]
 
     logger.debug(f"Generating responses for {len(prompts)} prompts")
@@ -1804,9 +1674,7 @@ def generate_ablation(
 
     if os.path.exists(save_path / "generations.json"):
         logger.debug(f"Merge new responses with existing ones")
-        all_responses = all_responses + [
-            ele for ele in existing_responses if ele["generated_tokens"] is not None
-        ]
+        all_responses = all_responses + [ele for ele in existing_responses if ele["generated_tokens"] is not None]
         all_responses = sorted(all_responses, key=lambda x: x["idx"])
 
     with open(save_path / "generations.json", "w") as f:

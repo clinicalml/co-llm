@@ -134,8 +134,14 @@ Here is an example of how to use the scripts for deferral generation:
 ```bash
 bash scripts/evaluation/gsm8k/deferral_generate.sh
 ```
-In this code, it starts a base server for a deferral-trained Llama-7b model, as well as an assistant model for Llama-70b. Then it uses the `collm/generate.py` scripts to perform collaborative generation with 0.6 deferral threshold. 
+It uses the `scripts/evaluation/generic/deferral_generate.sh` script with three steps: 
+1. Run the deferral search to generate on a small validation set under different deferral frequency
+2. Evaluate the accuracy and pick the best deferral threshold 
+3. Run Co-LLM generation with the optimal threshold. 
 
+We also need to run the `forward.js` script to start a javascript-based batch request forwarding server: `node forward.js`. 
+It will be terribly slow to batch send async requests to the `vllm` server in Python (during the threshold searching stage); so we made this javascript based forwarding server to speed up this process. 
+The dependency is very minimal -- you only need to install `express` and `axios` with `npm install express axios`.
 
 ## Acknowledgement 
 
