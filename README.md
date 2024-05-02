@@ -17,8 +17,9 @@ Use the following code to create the environment:
 
 ```bash
 conda create -n co-llm python=3.11 -y
+conda activate co-llm
 conda install \
-    pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 
+    pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 \
     pytorch-cuda=12.1 -c pytorch -c nvidia -y
 
 pip install -r requirements.txt
