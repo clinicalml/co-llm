@@ -725,7 +725,7 @@ def eval_tydiqa(pred_data, orig_data):
         pred_data = pred_data["train"]
 
     metric = evaluate.load("squad")
-    data_languages = set(orig_data["lang"])
+    data_languages = sorted(list(set(orig_data["lang"])))
     target = [ele.strip().split("\n\n")[0] if ele else "" for ele in pred_data["generated_text"]]
 
     eval_scores = {}
@@ -743,17 +743,16 @@ def eval_tydiqa(pred_data, orig_data):
     eval_scores["average"] = {
         metric: np.mean([scores[metric] for scores in eval_scores.values()]) for metric in ["exact_match", "f1"]
     }
-
-    def_rate = np.array([(np.array(ele["deferral_prob"]) > ele["def_threshold"]).mean() for ele in pred_data]).mean()
-    th = pred_data["def_threshold"][0]
-
-    return {
-        "threshold": th,
-        "def_rate": def_rate,
+    result = {
         "exact_match": eval_scores["average"]["exact_match"],
         "f1": eval_scores["average"]["f1"],
         "performance": eval_scores,
     }
+
+    if "deferral_prob" in pred_data.column_names:
+        _add_deferral_probs(pred_data, result)
+
+    return result
 
 
 def eval_math(
